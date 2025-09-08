@@ -92,7 +92,7 @@ jobs:
         id: build-push-image
         with:
           context: .
-          file: Dockerfile.publish
+          file: Dockerfile
           platforms: linux/amd64
           push: true
           provenance: false
