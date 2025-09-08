@@ -1,0 +1,109 @@
+name: Deploy to Dev
+
+# When the action will run
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+  ## Run this action automatically
+  push:
+    branches:
+      - main
+
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+
+  build_and_publish:
+
+    # ubuntu-latest, macos-latest, or windows-latest
+    runs-on: ubuntu-latest
+
+    ## Set the env - saved in GitHub repo settings
+    #environment: dev    
+
+    ## Use the Bash shell regardless whether the GitHub Actions runner is
+    defaults:
+      run:
+        shell: bash
+
+
+    steps:
+      ## Checks-out the repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+
+      ## Setup .net 8.0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      ## Install package dependencies
+      - name: 'Install .net dependencies'
+        run: dotnet restore ./Books.csproj
+
+      # ## Build the package is not required as the test step already does that by default
+      # - name: 'Build the package'
+      #   run: RUN dotnet build "./Presentation/Presentation.csproj" -c Release -o ./build
+        
+     
+      ## Wrap up the package
+      - name: 'Publish the code'
+        run: DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet publish "./Books.csproj" -c Release -o ./publish /p:UseAppHost=false
+
+
+      ## Creating the image version for the tagging
+      ## format eg 2025-05-13T163043
+      - name: Generate build version from date, time, hour
+        id: image_version
+        run: echo "IMAGE_VERSION=$(date +'%Y-%m-%dT%H%M%S')" >> $GITHUB_ENV
+
+      - name: Display generated version/tag naming for the docker image
+        run: echo "Image tag will be = $IMAGE_VERSION"
+
+      ## Create the image full name - IMAGE_NAME
+      - name: 'Creating the ECR image name'
+        run: echo "IMAGE_NAME=${{ vars.REGISTRY_LOGIN_SERVER }}/dev/books-be" >> $GITHUB_ENV
+
+
+      ####
+      # Auth into the ACR in order to publish the docker image
+      - name: Log in to Azure (using Service Principal)
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }} # Service Principal JSON secret
+
+      - name: Log in to Azure Container Registry (using Service Principal)
+        uses: docker/login-action@v3
+        with:
+       		username: ${{ secrets.AZURE_ACR_USERNAME }}
+        	password: ${{ secrets.AZURE_ACR_PASSWORD }}
+        	registry: ${{ secrets.AZURE_ACR_LOGIN_SERVER }}
+
+
+      ## Building and pushing the docker image
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push docker image
+        uses: docker/build-push-action@v6
+        id: build-push-image
+        with:
+          context: .
+          file: Dockerfile.publish
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            ${{env.IMAGE_NAME}}:${{env.IMAGE_VERSION}}
+            ${{env.IMAGE_NAME}}:latest
+
+      ## Update Azure Container App revision with the new image
+      - name: Deploy to Azure Container App
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          containerAppName: 'books-be'
+          resourceGroup: 'Books'
+          imageToDeploy: '${{env.IMAGE_NAME}}:${{env.IMAGE_VERSION}}'
