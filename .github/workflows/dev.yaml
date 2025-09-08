@@ -63,7 +63,7 @@ jobs:
 
       ## Create the image full name - IMAGE_NAME
       - name: 'Creating the ECR image name'
-        run: echo "IMAGE_NAME=books" >> $GITHUB_ENV
+        run: echo "IMAGE_NAME=${{ vars.REGISTRY_LOGIN_SERVER }}/dev/books-be" >> $GITHUB_ENV
 
 
       ####
