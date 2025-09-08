@@ -107,3 +107,4 @@ jobs:
           containerAppName: 'books-be'
           resourceGroup: 'Books'
           imageToDeploy: '${{env.IMAGE_NAME}}:${{env.IMAGE_VERSION}}'
+          
