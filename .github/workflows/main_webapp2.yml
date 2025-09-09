@@ -60,6 +60,6 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'WebApp2'
-          slot-name: 'Development'
+          slot-name: 'Production'
           package: .
           
