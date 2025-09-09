@@ -20,7 +20,7 @@ namespace Books.Controllers
             {
                 new Book { Title = "Book 1", Author = "Author 1" },
                 new Book { Title = "Book 2", Author = "Author 2" },
-                new Book { Title = "Book 3", Author = "Author 3" }
+                new Book { Title = "Book 3", Author = "Author 33" }
             };
         }
     }
